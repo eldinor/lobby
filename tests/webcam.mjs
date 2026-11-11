@@ -3,7 +3,8 @@ import { preview } from 'vite';
 import assert from 'node:assert/strict';
 import { mkdir } from 'node:fs/promises';
 
-const server = await preview({ base: '/lobby/', preview: { host: '127.0.0.1', port: 4176, strictPort: true } });
+const target = process.env.LOBBY_TEST_URL || process.argv[2];
+const server = target ? undefined : await preview({ base: '/lobby/', preview: { host: '127.0.0.1', port: 4176, strictPort: true } });
 let browser;
 try {
   browser = await chromium.launch({ args: ['--enable-webgl', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--use-fake-device-for-media-stream', '--use-fake-ui-for-media-stream'] });
@@ -24,7 +25,7 @@ try {
   }
   const [a, b] = pages;
   async function join(page, name) {
-    await page.goto('http://127.0.0.1:4176/lobby/');
+    await page.goto(target || 'http://127.0.0.1:4176/lobby/');
     await page.locator('#display-name').fill(name);
     await page.locator('#enter-button').click();
     await page.waitForFunction(() => document.querySelector('#network-status').textContent === 'Connected');
@@ -87,5 +88,5 @@ try {
   console.log('PASS: live two-session media, no automatic capture, receive-only viewer, microphone only after unmute, decoded video/audio, capture release on mute/leave, permission-denied UI.');
 } finally {
   await browser?.close();
-  await new Promise(resolve => server.httpServer.close(resolve));
+  if (server) await new Promise(resolve => server.httpServer.close(resolve));
 }

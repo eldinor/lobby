@@ -12,6 +12,9 @@
     "test:livekit-setup": "node tests/livekit-setup.mjs",
     "build": "npm run typecheck && vite build",
     "preview": "vite preview --host 127.0.0.1",
+    "deploy": "npm run build && node scripts/deploy-pages.mjs",
+    "pages:configure": "node scripts/configure-pages.mjs",
+    "test:published": "node tests/webcam.mjs https://eldinor.github.io/lobby/",
     "test": "node tests/browser.mjs",
     "test:multiplayer": "node tests/multiplayer.mjs",
     "test:webcam": "node tests/webcam.mjs",
@@ -24,6 +27,7 @@
   },
   "devDependencies": {
     "@playwright/test": "1.65.0",
+    "gh-pages": "6.3.0",
     "livekit-server-sdk": "2.19.3",
     "supabase": "3.1.0",
     "typescript": "7.0.2",

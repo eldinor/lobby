@@ -91,6 +91,21 @@ It also checks matching wall-texture content on both clients, six-message evicti
 
 `dist/` contains static assets. Vite uses a relative base so the build also works at a GitHub Pages repository subpath. To publish, upload `dist/` as the GitHub Pages artifact using GitHub Actions (repository Settings → Pages → Source: GitHub Actions), or serve its contents from your existing Pages branch. No backend or secrets are needed for stage 1.
 
+### Deploy from the gh-pages branch
+
+```sh
+npm run deploy
+npm run pages:configure
+```
+
+`deploy` builds with your local `.env.local`, then publishes only `dist/` to the origin remote's `gh-pages` branch, including `.nojekyll`. It preserves the source checkout and updates the deployment branch without force-pushing. Local environment files, source code and server functions are not copied into the deployment branch. Public Vite settings are intentionally embedded into the browser build; LiveKit secrets remain only in Supabase.
+
+`pages:configure` reuses Git's configured GitHub credential helper, without writing credentials to the project, to select **Deploy from a branch → gh-pages → / (root)**. If the credential lacks Pages administration permission, select those settings manually in [the repository's Pages settings](https://github.com/eldinor/lobby/settings/pages).
+
+The site URL is **https://eldinor.github.io/lobby/**. Set the Supabase `LOBBY_ALLOWED_ORIGINS` secret to `https://eldinor.github.io` so voice/video token requests from this origin are accepted. Repeat `npm run deploy` after frontend changes; Pages configuration is only needed once.
+
+`npm run test:published` runs the two-session webcam/voice checks against the public site using simulated devices. It uses real Supabase/LiveKit connections and briefly consumes their free-plan allowances.
+
 ## Manual acceptance
 
 - Join with a name; verify the label follows the avatar.
