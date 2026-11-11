@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#e9e9e5" />
+    <meta name="description" content="A gray-box prototype for a shared 3D social lobby." />
+    <title>Lobby / Graybox</title>
+  </head>
+  <body>
+    <canvas id="scene" aria-label="3D lobby. WASD to walk, Shift to run, Space to jump, drag to orbit, scroll to zoom." tabindex="0"></canvas>
+    <header class="topbar">
+      <div class="brand"><span class="brand-mark">L</span><div>LOBBY <span class="edition">/ GRAYBOX</span></div></div>
+      <span class="stage"><i></i> STAGE 02 · MULTIPLAYER</span>
+    </header>
+    <main>
+      <section class="join-panel" id="join-panel" aria-labelledby="join-title">
+        <p class="eyebrow">A PLACE TO MEET</p>
+        <h1 id="join-title">Start with<br />a little space.</h1>
+        <p class="intro">One room. Your own point of view.<br />Take a walk through the first prototype.</p>
+        <form id="join-form">
+          <label for="display-name">YOUR DISPLAY NAME</label>
+          <input id="display-name" name="display-name" placeholder="What should we call you?" maxlength="24" required autocomplete="nickname" />
+          <button type="submit" id="enter-button" disabled>Loading room… <span>↗</span></button>
+        </form>
+        <p class="local-note" id="join-note">One shared room. Enter to join other participants.</p>
+      </section>
+      <div id="name-label" class="name-label" hidden></div>
+      <section class="session-panel" id="session-panel" hidden aria-label="Session controls">
+        <span class="eyebrow">EXPLORING THE LOBBY</span>
+        <div class="session-row"><strong id="player-name"></strong><button id="reset" type="button">Reset position ↺</button></div>
+        <output id="position" aria-label="Player position">X 0.0 / Z 5.0</output>
+        <span id="motion-status">Standing</span>
+        <div class="network-row"><span id="network-status" role="status">Not connected</span><span id="online-count">1 in room</span></div>
+        <ul id="participants" aria-label="Participants"></ul>
+        <button id="camera-toggle" type="button" aria-pressed="false">Turn camera on</button>
+        <p id="camera-status" role="status">Camera off · video only</p>
+        <div id="voice-controls" hidden>
+          <div class="voice-buttons"><button id="voice-join" type="button">Join voice</button><button id="microphone-toggle" type="button" aria-pressed="false">Unmute microphone</button></div>
+          <p id="voice-status" role="status">Voice disconnected · join when ready</p>
+          <button id="audio-enable" type="button" hidden>Enable sound</button>
+        </div>
+        <button id="leave" type="button">Leave lobby</button>
+      </section>
+      <p id="error" role="alert" hidden></p>
+      <div id="room-audio" hidden></div>
+      <section id="chat" aria-label="Room chat" hidden>
+        <button id="chat-toggle" type="button" aria-expanded="true" aria-controls="chat-body">Room chat −</button>
+        <div id="chat-body">
+          <div id="chat-messages" role="log" aria-label="Chat messages" aria-live="polite" aria-relevant="additions"></div>
+          <form id="chat-form">
+            <label class="chat-input-label" for="chat-input">Message everyone in the room</label>
+            <div class="chat-compose"><input id="chat-input" maxlength="300" placeholder="Say something…" autocomplete="off" /><button id="chat-send" type="submit" disabled>Send</button></div>
+          </form>
+          <p id="chat-hint" role="status">Chat waits for the room connection…</p>
+        </div>
+      </section>
+    </main>
+    <footer class="bottombar">
+      <div class="controls"><span><kbd>W A S D</kbd> Walk</span><span><kbd>SHIFT</kbd> Run</span><span><kbd>SPACE</kbd> Jump</span><span><kbd>DRAG</kbd> Orbit</span><span><kbd>SCROLL</kbd> Zoom</span></div>
+      <span class="room-info">ROOM 001 <span>20 × 20 M</span></span>
+    </footer>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

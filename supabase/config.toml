@@ -1,0 +1,5 @@
+project_id = "graybox-social-lobby"
+
+[functions.livekit-token]
+# The handler verifies the guest JWT with Supabase Auth itself, including asymmetric JWTs.
+verify_jwt = false

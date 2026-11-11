@@ -1,0 +1,71 @@
+import { AccessToken, TrackSource } from 'livekit-server-sdk';
+
+type Environment = (name: string) => string | undefined;
+const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+export function createTokenHandler(env: Environment, request: typeof fetch = fetch) {
+  const limits = new Map<string, { start: number; count: number }>();
+  return async (req: Request): Promise<Response> => {
+    const origin = req.headers.get('origin') ?? '';
+    const allowed = (env('LOBBY_ALLOWED_ORIGINS') ?? '').split(',').map(value => value.trim()).filter(Boolean);
+    const local = /^http:\/\/(localhost|127\.0\.0\.1):(5173|417[3-7])$/.test(origin);
+    const headers: Record<string, string> = { 'Cache-Control': 'no-store', 'Vary': 'Origin' };
+    if (!local && !allowed.includes(origin)) return Response.json({ error: 'Origin not allowed' }, { status: 403, headers });
+    headers['Access-Control-Allow-Origin'] = origin;
+    headers['Access-Control-Allow-Headers'] = 'authorization, apikey, content-type, x-client-info';
+    headers['Access-Control-Allow-Methods'] = 'POST, OPTIONS';
+    if (req.method === 'OPTIONS') return new Response(null, { status: 204, headers });
+    const fail = (error: string, status: number) => Response.json({ error }, { status, headers });
+    if (req.method !== 'POST') return fail('Use POST', 405);
+    const authorization = req.headers.get('authorization') ?? '';
+    const publicKey = req.headers.get('apikey') ?? '';
+    if (!authorization.startsWith('Bearer ') || authorization.length > 8192 || !publicKey || publicKey.length > 2048) return fail('Guest authentication required', 401);
+    const supabaseUrl = env('SUPABASE_URL');
+    if (!supabaseUrl) return fail('Token service is not configured', 503);
+    let userId: string;
+    try {
+      const auth = await request(`${supabaseUrl}/auth/v1/user`, { headers: { authorization, apikey: publicKey }, signal: AbortSignal.timeout(8000) });
+      if (!auth.ok) return fail('Guest session is invalid or expired', 401);
+      const user = await auth.json();
+      if (typeof user.id !== 'string' || !uuid.test(user.id)) return fail('Invalid guest identity', 401);
+      userId = user.id;
+    } catch { return fail('Guest verification is temporarily unavailable', 503); }
+    if (!req.headers.get('content-type')?.startsWith('application/json')) return fail('Expected JSON', 415);
+    let body: { sessionId?: unknown; name?: unknown };
+    try {
+      const reader = req.body?.getReader();
+      if (!reader) return fail('Missing request body', 400);
+      let text = '';
+      const decoder = new TextDecoder();
+      let bytes = 0;
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        bytes += value.byteLength;
+        if (bytes > 2048) { await reader.cancel(); return fail('Request too large', 413); }
+        text += decoder.decode(value, { stream: true });
+      }
+      text += decoder.decode();
+      body = JSON.parse(text);
+      if (!body || typeof body !== 'object') return fail('Invalid request', 400);
+    } catch { return fail('Invalid JSON', 400); }
+    if (typeof body.sessionId !== 'string' || !uuid.test(body.sessionId) || typeof body.name !== 'string' || body.name.length > 24) return fail('Invalid session or name', 400);
+    const name = body.name.replace(/[\u0000-\u001f\u007f-\u009f]/g, '').trim();
+    if (!name) return fail('A display name is required', 400);
+    const now = Date.now();
+    for (const [id, entry] of limits) if (now - entry.start >= 60000) limits.delete(id);
+    const previous = limits.get(userId);
+    if (previous && previous.count >= 6) return fail('Too many media joins. Please wait a minute.', 429);
+    if (!previous && limits.size >= 1000) return fail('Token service is busy. Please retry.', 503);
+    limits.set(userId, { start: previous?.start ?? now, count: (previous?.count ?? 0) + 1 });
+    const url = env('LIVEKIT_URL');
+    const key = env('LIVEKIT_API_KEY');
+    const secret = env('LIVEKIT_API_SECRET');
+    if (!url || !/^wss:\/\/[a-z0-9.-]+(?::\d+)?\/?$/i.test(url) || !key || !secret) return fail('LiveKit secrets are missing or invalid', 503);
+    try {
+      const token = new AccessToken(key, secret, { identity: `${userId}:${body.sessionId}`, name, ttl: '10m', attributes: { avatarId: body.sessionId } });
+      token.addGrant({ roomJoin: true, room: 'lobby-001', canSubscribe: true, canPublish: true, canPublishSources: [TrackSource.CAMERA, TrackSource.MICROPHONE], canPublishData: false, canUpdateOwnMetadata: false });
+      return Response.json({ serverUrl: url, participantToken: await token.toJwt() }, { headers });
+    } catch { return fail('Could not create a media token', 503); }
+  };
+}
